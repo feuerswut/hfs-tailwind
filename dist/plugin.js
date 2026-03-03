@@ -2,7 +2,7 @@
 // Bundles @tailwindcss/browser and exposes it to other HFS plugins via customApi.
 // Optionally serves the JS file over HTTP at a configurable path.
 
-exports.version = 2001.2; // scheme: (minor * 1000 + patch) . my_patch  ->  4.2.1 = 2001.0
+exports.version = 2001.3; // scheme: (minor * 1000 + patch) . my_patch  ->  4.2.1 = 2001.0
 exports.description = "Provides @tailwindcss/browser to other plugins and optionally serves it.";
 exports.apiRequired = 8.65;
 exports.author = "Feuerswut";
@@ -30,7 +30,7 @@ exports.config = {
         type: 'string',
         defaultValue: '',
         label: 'Serve Path (optional)',
-        helperText: 'URL path to serve tailwind.js. Leave empty to disable. Example: /~/tailwind/tailwind.js'
+        helperText: 'URL path to serve tailwind.js. Leave empty to disable. Example: /some/path/tailwind.js'
     }
 };
 
@@ -39,7 +39,7 @@ exports.configDialog = { maxWidth: 600 };
 const path = require('path');
 const fs   = require('fs');
 
-const JS_FILE = path.join(__dirname, 'tailwind.js');
+const JS_FILE = path.join(__dirname, 'tailwind/tailwind.js');
 
 exports.init = async api => {
     if (!fs.existsSync(JS_FILE)) {
