@@ -1,0 +1,97 @@
+name: Update Tailwind Browser
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # daily at 06:00 UTC
+  workflow_dispatch:        # allow manual trigger
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get latest Tailwind version
+        id: tw
+        run: |
+          VERSION=$(npm view @tailwindcss/browser version)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          PATCH=$(echo "$VERSION" | cut -d. -f3)
+          echo "minor=$MINOR" >> $GITHUB_OUTPUT
+          echo "patch=$PATCH" >> $GITHUB_OUTPUT
+
+          # Plugin version: (minor * 1000 + patch).0
+          # 4.1.18 → 1018.0
+          PLUGIN_VERSION=$(node -e "process.stdout.write(String($MINOR * 1000 + $PATCH) + '.0')")
+          echo "plugin_version=$PLUGIN_VERSION" >> $GITHUB_OUTPUT
+          echo "Tailwind $VERSION → plugin $PLUGIN_VERSION"
+
+      - name: Read current plugin version
+        id: current
+        run: |
+          CURRENT=$(grep -oP 'exports\.version\s*=\s*\K[0-9]+\.[0-9]+' plugin.js || echo "0.0")
+          echo "version=$CURRENT" >> $GITHUB_OUTPUT
+          echo "Current plugin version: $CURRENT"
+
+      - name: Check if update is needed
+        id: check
+        run: |
+          NEW="${{ steps.tw.outputs.plugin_version }}"
+          CURRENT="${{ steps.current.outputs.version }}"
+          if [ "$NEW" = "$CURRENT" ]; then
+            echo "needed=false" >> $GITHUB_OUTPUT
+            echo "Already up to date ($CURRENT)."
+          else
+            echo "needed=true" >> $GITHUB_OUTPUT
+            echo "Update: $CURRENT -> $NEW"
+          fi
+
+      - name: Download tailwind-browser.js
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          VERSION="${{ steps.tw.outputs.version }}"
+          URL="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@${VERSION}/dist/index.global.js"
+          echo "Downloading $URL"
+          curl -fsSL "$URL" -o tailwind-browser.js
+          [ -s tailwind-browser.js ] || (echo "Empty file — aborting." && exit 1)
+          echo "$(wc -c < tailwind-browser.js) bytes downloaded."
+
+      - name: Update exports.version in plugin.js
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          NEW_VER="${{ steps.tw.outputs.plugin_version }}"
+          TW_VER="${{ steps.tw.outputs.version }}"
+          sed -i "s|exports\.version = .*;|exports.version = ${NEW_VER};|" plugin.js
+          sed -i "s|// scheme:.*|// scheme: (minor * 1000 + patch) . my_patch  ->  ${TW_VER} = ${NEW_VER}|" plugin.js
+          grep 'exports.version' plugin.js
+
+      - name: Create Pull Request
+        if: steps.check.outputs.needed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: "update/tailwind-${{ steps.tw.outputs.version }}"
+          commit-message: "chore: update tailwind-browser.js to ${{ steps.tw.outputs.version }}"
+          title: "Update @tailwindcss/browser to ${{ steps.tw.outputs.version }} (plugin ${{ steps.tw.outputs.plugin_version }})"
+          body: |
+            Automated update of bundled `tailwind-browser.js`.
+
+            | | Value |
+            |---|---|
+            | Previous plugin version | `${{ steps.current.outputs.version }}` |
+            | New @tailwindcss/browser | `${{ steps.tw.outputs.version }}` |
+            | New plugin version | `${{ steps.tw.outputs.plugin_version }}` |
+
+            **Version scheme:** `(minor × 1000 + patch) . my_patch` — so `4.1.18` → `1018.0`
+
+            Bump `my_patch` manually in `plugin.js` if needed before merging.
+          labels: |
+            dependencies
+            automated
