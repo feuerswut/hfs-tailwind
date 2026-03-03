@@ -2,7 +2,7 @@
 // Bundles @tailwindcss/browser and exposes it to other HFS plugins via customApi.
 // Optionally serves the JS file over HTTP at a configurable path.
 
-exports.version = 2001.1; // scheme: (minor * 1000 + patch) . my_patch  ->  4.2.1 = 2001.0
+exports.version = 2001.2; // scheme: (minor * 1000 + patch) . my_patch  ->  4.2.1 = 2001.0
 exports.description = "Provides @tailwindcss/browser to other plugins and optionally serves it.";
 exports.apiRequired = 8.65;
 exports.author = "Feuerswut";
@@ -11,15 +11,15 @@ exports.repo = "Feuerswut/hfs-tailwind";
 exports.customApi = {
     // Consume in other plugins:
     //   const { tailwind } = api.customApi['Feuerswut/hfs-tailwind']
-    //   tailwind.path   → absolute path to tailwind-browser.js on disk
+    //   tailwind.path   → absolute path to tailwind.js on disk
     //   tailwind.source → file contents as a string (lazy)
     tailwind: {
         get path() {
-            return require('path').join(__dirname, 'tailwind/tailwind-browser.js');
+            return require('path').join(__dirname, 'tailwind/tailwind.js');
         },
         get source() {
             return require('fs').readFileSync(
-                require('path').join(__dirname, 'tailwind/tailwind-browser.js'), 'utf8'
+                require('path').join(__dirname, 'tailwind/tailwind.js'), 'utf8'
             );
         },
     }
@@ -30,7 +30,7 @@ exports.config = {
         type: 'string',
         defaultValue: '',
         label: 'Serve Path (optional)',
-        helperText: 'URL path to serve tailwind-browser.js. Leave empty to disable. Example: /~/tailwind/tailwind.js'
+        helperText: 'URL path to serve tailwind.js. Leave empty to disable. Example: /~/tailwind/tailwind.js'
     }
 };
 
@@ -39,11 +39,11 @@ exports.configDialog = { maxWidth: 600 };
 const path = require('path');
 const fs   = require('fs');
 
-const JS_FILE = path.join(__dirname, 'tailwind-browser.js');
+const JS_FILE = path.join(__dirname, 'tailwind.js');
 
 exports.init = async api => {
     if (!fs.existsSync(JS_FILE)) {
-        console.error('[hfs-tailwind] tailwind-browser.js not found — reinstall or run the update workflow.');
+        console.error('[hfs-tailwind] tailwind.js not found — reinstall or run the update workflow.');
     }
     return { middleware };
 
@@ -57,7 +57,7 @@ exports.init = async api => {
         if (!fs.existsSync(JS_FILE)) {
             ctx.status = 503;
             ctx.type   = 'text/plain';
-            ctx.body   = 'tailwind-browser.js not available';
+            ctx.body   = 'tailwind.js not available';
             ctx.stop();
             return;
         }
