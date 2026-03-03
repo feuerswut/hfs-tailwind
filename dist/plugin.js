@@ -2,7 +2,7 @@
 // Bundles @tailwindcss/browser and exposes it to other HFS plugins via customApi.
 // Optionally serves the JS file over HTTP at a configurable path.
 
-exports.version = 2001.5; // scheme: (minor * 1000 + patch) . my_patch  ->  4.2.1 = 2001.0
+exports.version = 2001.6; // scheme: (minor * 1000 + patch) . my_patch  ->  4.2.1 = 2001.0
 exports.description = "Provides @tailwindcss/browser to other plugins and optionally serves it.";
 exports.apiRequired = 8.65;
 exports.author = "Feuerswut";
@@ -40,31 +40,32 @@ const path = require('path');
 const fs   = require('fs');
 
 const JS_FILE = path.join(__dirname, 'tailwind/tailwind.js');
+let _tailwindBuffer = null;
 
 exports.init = async api => {
     if (!fs.existsSync(JS_FILE)) {
         console.error('[hfs-tailwind] tailwind.js not found — reinstall or run the update workflow.');
+    } else {
+        _tailwindBuffer = fs.readFileSync(JS_FILE);
+        console.log(`[hfs-tailwind] loaded ${_tailwindBuffer.length} bytes`);
     }
     return { middleware };
 
     async function middleware(ctx) {
         const servePath = (api.getConfig('servePath') || '').trim().replace(/\/+$/, '');
         if (!servePath) return;
-
         const url = ctx.req.url.split('?')[0];
         if (url !== servePath) return;
-
-        if (!fs.existsSync(JS_FILE)) {
+        if (!_tailwindBuffer) {
             ctx.status = 503;
             ctx.type   = 'text/plain';
             ctx.body   = 'tailwind.js not available';
             ctx.stop();
             return;
         }
-
         ctx.type = 'application/javascript';
-        ctx.set('Cache-Control', 'public, max-age=86400'); // 1-day cache; file only changes on plugin update
-        ctx.body = fs.createReadStream(JS_FILE);
+        ctx.set('Cache-Control', 'public, max-age=86400');
+        ctx.body = _tailwindBuffer;
         ctx.stop();
     }
 };
