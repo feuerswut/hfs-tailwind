@@ -76,6 +76,7 @@ jobs:
 
       - name: Create Pull Request
         if: steps.check.outputs.needed == 'true'
+        id: cpr
         uses: peter-evans/create-pull-request@v6
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -84,16 +85,19 @@ jobs:
           title: "Update @tailwindcss/browser to ${{ steps.tw.outputs.version }} (plugin ${{ steps.tw.outputs.plugin_version }})"
           body: |
             Automated update of bundled `dist/tailwind/tailwind.js`.
-
             | | Value |
             |---|---|
             | Previous plugin version | `${{ steps.current.outputs.version }}` |
             | New @tailwindcss/browser | `${{ steps.tw.outputs.version }}` |
             | New plugin version | `${{ steps.tw.outputs.plugin_version }}` |
-
             **Version scheme:** `(minor × 1000 + patch) . my_patch` — so `4.1.18` → `1018.0`
-
             Bump `my_patch` manually in `dist/plugin.js` if needed before merging.
           labels: |
             dependencies
             automated
+
+      - name: Enable auto-merge
+        if: steps.check.outputs.needed == 'true' && steps.cpr.outputs.pull-request-number != ''
+        run: gh pr merge --auto --squash "${{ steps.cpr.outputs.pull-request-number }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
