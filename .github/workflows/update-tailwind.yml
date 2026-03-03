@@ -64,6 +64,13 @@ jobs:
           [ -s dist/tailwind/tailwind.js ] || (echo "Empty file — aborting." && exit 1)
           echo "$(wc -c < dist/tailwind/tailwind.js) bytes downloaded."
 
+      - name: Minify tailwind-browser.js
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          npm install -g terser
+          terser dist/tailwind/tailwind.js --compress --mangle --output dist/tailwind/tailwind.js
+          echo "$(wc -c < dist/tailwind/tailwind.js) bytes after minification."
+
       - name: Update exports.version in plugin.js
         if: steps.check.outputs.needed == 'true'
         run: |
