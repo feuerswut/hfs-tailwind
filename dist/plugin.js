@@ -2,7 +2,7 @@
 // Bundles @tailwindcss/browser and exposes it to other HFS plugins via customApi.
 // Optionally serves the JS file over HTTP at a configurable path.
 
-exports.version = 2001.0; // scheme: (minor * 1000 + patch) . my_patch  ->  4.2.1 = 2001.0
+exports.version = 2001.1; // scheme: (minor * 1000 + patch) . my_patch  ->  4.2.1 = 2001.0
 exports.description = "Provides @tailwindcss/browser to other plugins and optionally serves it.";
 exports.apiRequired = 8.65;
 exports.author = "Feuerswut";
@@ -15,11 +15,11 @@ exports.customApi = {
     //   tailwind.source → file contents as a string (lazy)
     tailwind: {
         get path() {
-            return require('path').join(__dirname, 'tailwind-browser.js');
+            return require('path').join(__dirname, 'tailwind/tailwind-browser.js');
         },
         get source() {
             return require('fs').readFileSync(
-                require('path').join(__dirname, 'tailwind-browser.js'), 'utf8'
+                require('path').join(__dirname, 'tailwind/tailwind-browser.js'), 'utf8'
             );
         },
     }
