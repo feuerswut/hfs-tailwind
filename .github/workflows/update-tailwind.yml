@@ -2,8 +2,8 @@ name: Update Tailwind Browser
 
 on:
   schedule:
-    - cron: '0 6 * * *'   # daily at 06:00 UTC
-  workflow_dispatch:        # allow manual trigger
+    - cron: '0 6 * * *'
+  workflow_dispatch:
 
 jobs:
   update:
@@ -18,6 +18,8 @@ jobs:
 
       - name: Get latest Tailwind version
         id: tw
+        env:
+          MY_PATCH: ${{ vars.MY_PATCH }}
         run: |
           VERSION=$(npm view @tailwindcss/browser version)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -25,25 +27,17 @@ jobs:
           MAJOR=$(echo "$VERSION" | cut -d. -f1)
           MINOR=$(echo "$VERSION" | cut -d. -f2)
           PATCH=$(echo "$VERSION" | cut -d. -f3)
-          echo "major=$MAJOR" >> $GITHUB_OUTPUT
-          echo "minor=$MINOR" >> $GITHUB_OUTPUT
-          echo "patch=$PATCH" >> $GITHUB_OUTPUT
 
-          # Plugin version: my_patch . encoded_tailwind_version
-          # e.g. MY_PATCH=8, Tailwind 4.2.1 → 8.40201
           ENCODED_VERSION="${MAJOR}$(printf '%02d' $MINOR)$(printf '%02d' $PATCH)"
           PLUGIN_VERSION="${MY_PATCH}.${ENCODED_VERSION}"
           echo "plugin_version=$PLUGIN_VERSION" >> $GITHUB_OUTPUT
           echo "Tailwind $VERSION → plugin $PLUGIN_VERSION"
-        env:
-          MY_PATCH: ${{ vars.MY_PATCH }}
 
       - name: Read current plugin version
         id: current
         run: |
           CURRENT=$(grep -oP 'exports\.version\s*=\s*\K[0-9]+\.[0-9]+' dist/plugin.js || echo "0.0")
           echo "version=$CURRENT" >> $GITHUB_OUTPUT
-          echo "Current plugin version: $CURRENT"
 
       - name: Check if update is needed
         id: check
@@ -52,29 +46,31 @@ jobs:
           CURRENT="${{ steps.current.outputs.version }}"
           if [ "$NEW" = "$CURRENT" ]; then
             echo "needed=false" >> $GITHUB_OUTPUT
-            echo "Already up to date ($CURRENT)."
           else
             echo "needed=true" >> $GITHUB_OUTPUT
-            echo "Update: $CURRENT -> $NEW"
           fi
+
+      - name: Generate commit message
+        id: commit_msg
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          MSG="chore: update tailwind-browser.js to ${{ steps.tw.outputs.version }}"
+          echo "message=$MSG" >> $GITHUB_OUTPUT
 
       - name: Download tailwind-browser.js
         if: steps.check.outputs.needed == 'true'
         run: |
           VERSION="${{ steps.tw.outputs.version }}"
           URL="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@${VERSION}/dist/index.global.js"
-          echo "Downloading $URL"
           mkdir -p dist/tailwind
           curl -fsSL "$URL" -o dist/tailwind/tailwind.js
           [ -s dist/tailwind/tailwind.js ] || (echo "Empty file — aborting." && exit 1)
-          echo "$(wc -c < dist/tailwind/tailwind.js) bytes downloaded."
 
       - name: Minify tailwind-browser.js
         if: steps.check.outputs.needed == 'true'
         run: |
           npm install -g terser
           terser dist/tailwind/tailwind.js --compress --mangle --output dist/tailwind/tailwind.js
-          echo "$(wc -c < dist/tailwind/tailwind.js) bytes after minification."
 
       - name: Update exports.version in plugin.js
         if: steps.check.outputs.needed == 'true'
@@ -83,8 +79,6 @@ jobs:
           TW_VER="${{ steps.tw.outputs.version }}"
           sed -i "s|exports\.version = .*;|exports.version = ${NEW_VER};|" dist/plugin.js
           sed -i "s|// scheme:.*|// scheme: my_patch . encoded_tailwind_version  ->  ${TW_VER} = ${NEW_VER}|" dist/plugin.js
-          echo "dist/plugin.js patched:"
-          grep 'exports.version' dist/plugin.js
 
       - name: Create Pull Request
         if: steps.check.outputs.needed == 'true'
@@ -93,7 +87,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: "update/tailwind-${{ steps.tw.outputs.version }}"
-          commit-message: "chore: update tailwind-browser.js to ${{ steps.tw.outputs.version }}"
+          commit-message: "${{ steps.commit_msg.outputs.message }}"
           title: "Update @tailwindcss/browser to ${{ steps.tw.outputs.version }} (plugin ${{ steps.tw.outputs.plugin_version }})"
           body: |
             Automated update of bundled `dist/tailwind/tailwind.js`.
@@ -102,8 +96,7 @@ jobs:
             | Previous plugin version | `${{ steps.current.outputs.version }}` |
             | New @tailwindcss/browser | `${{ steps.tw.outputs.version }}` |
             | New plugin version | `${{ steps.tw.outputs.plugin_version }}` |
-            **Version scheme:** `my_patch . encoded_tailwind_version` — so Tailwind `4.2.1` with `MY_PATCH=8` → `8.40201`
-            Bump `MY_PATCH` in GitHub Settings if needed before merging.
+            **Version scheme:** `my_patch . encoded_tailwind_version` → Tailwind `4.2.1` with `MY_PATCH=8` = `8.40201`
           labels: |
             dependencies
             automated
