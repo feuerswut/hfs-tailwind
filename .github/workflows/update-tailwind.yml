@@ -8,6 +8,8 @@ on:
 jobs:
   update:
     runs-on: ubuntu-latest
+    env:
+      MY_PATCH: "0"  # ← Hier MY_PATCH festlegen
     permissions:
       contents: write
       pull-requests: write
@@ -27,16 +29,16 @@ jobs:
           echo "minor=$MINOR" >> $GITHUB_OUTPUT
           echo "patch=$PATCH" >> $GITHUB_OUTPUT
 
-          # Plugin version: (minor * 1000 + patch).0
-          # e.g. 4.1.18 → 1018.0
-          PLUGIN_VERSION=$(node -e "process.stdout.write(String($MINOR * 1000 + $PATCH) + '.0')")
+          # Plugin version: (minor * 1000 + patch) . my_patch.tailwind
+          # e.g. 4.1.18 → 1018.0.tailwind
+          PLUGIN_VERSION=$(node -e "process.stdout.write(String($MINOR * 1000 + $PATCH) + '.${{ env.MY_PATCH }}.tailwind')")
           echo "plugin_version=$PLUGIN_VERSION" >> $GITHUB_OUTPUT
           echo "Tailwind $VERSION → plugin $PLUGIN_VERSION"
 
       - name: Read current plugin version
         id: current
         run: |
-          CURRENT=$(grep -oP 'exports\.version\s*=\s*\K[0-9]+\.[0-9]+' dist/plugin.js || echo "0.0")
+          CURRENT=$(grep -oP 'exports\.version\s*=\s*\K[0-9]+\.[0-9]+\.[a-z]+' dist/plugin.js || echo "0.0.tailwind")
           echo "version=$CURRENT" >> $GITHUB_OUTPUT
           echo "Current plugin version: $CURRENT"
 
@@ -77,7 +79,7 @@ jobs:
           NEW_VER="${{ steps.tw.outputs.plugin_version }}"
           TW_VER="${{ steps.tw.outputs.version }}"
           sed -i "s|exports\.version = .*;|exports.version = ${NEW_VER};|" dist/plugin.js
-          sed -i "s|// scheme:.*|// scheme: (minor * 1000 + patch) . my_patch  ->  ${TW_VER} = ${NEW_VER}|" dist/plugin.js
+          sed -i "s|// scheme:.*|// scheme: (minor * 1000 + patch) . my_patch.tailwind  ->  ${TW_VER} = ${NEW_VER}|" dist/plugin.js
           echo "dist/plugin.js patched:"
           grep 'exports.version' dist/plugin.js
 
@@ -97,7 +99,7 @@ jobs:
             | Previous plugin version | `${{ steps.current.outputs.version }}` |
             | New @tailwindcss/browser | `${{ steps.tw.outputs.version }}` |
             | New plugin version | `${{ steps.tw.outputs.plugin_version }}` |
-            **Version scheme:** `(minor × 1000 + patch) . my_patch` — so `4.1.18` → `1018.0`
+            **Version scheme:** `(minor × 1000 + patch) . my_patch.tailwind` — so `4.1.18` → `1018.0.tailwind`
             Bump `my_patch` manually in `dist/plugin.js` if needed before merging.
           labels: |
             dependencies
