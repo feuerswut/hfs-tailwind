@@ -32,9 +32,11 @@ jobs:
           # Plugin version: my_patch . encoded_tailwind_version
           # e.g. MY_PATCH=8, Tailwind 4.2.1 → 8.40201
           ENCODED_VERSION="${MAJOR}$(printf '%02d' $MINOR)$(printf '%02d' $PATCH)"
-          PLUGIN_VERSION="${{ env.MY_PATCH }}.${ENCODED_VERSION}"
+          PLUGIN_VERSION="${MY_PATCH}.${ENCODED_VERSION}"
           echo "plugin_version=$PLUGIN_VERSION" >> $GITHUB_OUTPUT
           echo "Tailwind $VERSION → plugin $PLUGIN_VERSION"
+        env:
+          MY_PATCH: ${{ vars.MY_PATCH }}
 
       - name: Read current plugin version
         id: current
@@ -101,7 +103,7 @@ jobs:
             | New @tailwindcss/browser | `${{ steps.tw.outputs.version }}` |
             | New plugin version | `${{ steps.tw.outputs.plugin_version }}` |
             **Version scheme:** `my_patch . encoded_tailwind_version` — so Tailwind `4.2.1` with `MY_PATCH=8` → `8.40201`
-            Bump `MY_PATCH` env var in the workflow if needed before merging.
+            Bump `MY_PATCH` in GitHub Settings if needed before merging.
           labels: |
             dependencies
             automated
