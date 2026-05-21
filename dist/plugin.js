@@ -5,8 +5,8 @@
 exports.version = 8.40300; // scheme: my_patch . encoded_tailwind_version  ->  4.3.0 = 8.40300
 exports.description = "Provides @tailwindcss/browser to other plugins and optionally serves it.";
 exports.apiRequired = 8.65;
-exports.author = "Feuerswut";
-exports.repo = "Feuerswut/hfs-tailwind";
+exports.author = "feuerswut";
+exports.repo = "feuerswut/hfs-tailwind";
 
 exports.customApi = {
     // Use in other plugins:
