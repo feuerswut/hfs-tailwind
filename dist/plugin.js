@@ -2,7 +2,7 @@
 // Bundles @tailwindcss/browser and exposes it to other HFS plugins via customApi.
 // Optionally serves the JS file over HTTP at a configurable path.
 
-exports.version = 8.40300; // scheme: my_patch . encoded_tailwind_version  ->  4.3.0 = 8.40300
+exports.version = 9.40300; // scheme: my_patch . encoded_tailwind_version  ->  4.3.0 = 8.40300
 exports.description = "Provides @tailwindcss/browser to other plugins and optionally serves it.";
 exports.apiRequired = 8.65;
 exports.author = "feuerswut";
@@ -51,8 +51,10 @@ exports.init = async api => {
     async function middleware(ctx) {
         const servePath = (api.getConfig('servePath') || '').trim().replace(/\/+$/, '');
         if (!servePath) return;
-        const url = ctx.req.url.split('?')[0];
-        if (url !== servePath) return;
+    
+        // ← was: ctx.req.url.split('?')[0]  (raw URL, only works with ~ paths)
+        if (ctx.path !== servePath) return;
+    
         if (!_tailwindBuffer) {
             ctx.status = 503;
             ctx.type   = 'text/plain';
