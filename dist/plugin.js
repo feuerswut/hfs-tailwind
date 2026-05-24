@@ -27,30 +27,40 @@ exports.config = {
         type: 'string',
         defaultValue: '',
         label: 'Serve Path (optional)',
-        helperText: 'URL path to serve tailwind.js. Leave empty to disable. Example: /some/path/tailwind.js'
-    }
+        helperText: 'VFS path to serve tailwind.js. Leave empty to disable. Must match the full VFS path including any domain folder. Example: /feuerswut.de/res/js/tailwind.js',
+    },
+    debug: {
+        type: 'boolean',
+        defaultValue: false,
+        label: 'Debug Logging',
+        helperText: 'Log every incoming request path to the HFS console. Useful for diagnosing serve path issues.',
+    },
 };
 
 exports.configDialog = { maxWidth: 600 };
 
 const path = require('path');
 const fs   = require('fs');
-
 const JS_FILE = path.join(__dirname, 'tailwind/tailwind.js');
+
 let _tailwindBuffer = null;
 
 exports.init = async api => {
     if (!fs.existsSync(JS_FILE)) {
-        console.error('[hfs-tailwind] tailwind.js not found — reinstall or run the update workflow.');
+        api.log('[hfs-tailwind] tailwind.js not found — reinstall or run the update workflow.');
     } else {
         _tailwindBuffer = fs.readFileSync(JS_FILE);
-        console.log(`[hfs-tailwind] loaded ${_tailwindBuffer.length} bytes`);
+        api.log(`[hfs-tailwind] loaded ${_tailwindBuffer.length} bytes`);
     }
-
+    
     const stopListening = api.events.on('request', ({ ctx }) => {
+        if (api.getConfig('debug'))
+            api.log('[hfs-tailwind] request:', ctx.path);
+        
         const servePath = (api.getConfig('servePath') || '').trim().replace(/\/+$/, '');
+        
         if (!servePath || ctx.path !== servePath) return;
-
+        
         if (!_tailwindBuffer) {
             ctx.status = 503;
             ctx.type   = 'text/plain';
@@ -60,9 +70,11 @@ exports.init = async api => {
             ctx.set('Cache-Control', 'public, max-age=86400');
             ctx.body = _tailwindBuffer;
         }
+        
         ctx.stop();
+        
         return api.events.stop;
     });
-
+    
     return { unload: stopListening };
 };
