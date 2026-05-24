@@ -4,7 +4,7 @@
 
 exports.version = 9.40300; // scheme: my_patch . encoded_tailwind_version  ->  4.3.0 = 8.40300
 exports.description = "Provides @tailwindcss/browser to other plugins and optionally serves it.";
-exports.apiRequired = 8.65;
+exports.apiRequired = 13;
 exports.author = "feuerswut";
 exports.repo = "feuerswut/hfs-tailwind";
 
@@ -46,25 +46,23 @@ exports.init = async api => {
         _tailwindBuffer = fs.readFileSync(JS_FILE);
         console.log(`[hfs-tailwind] loaded ${_tailwindBuffer.length} bytes`);
     }
-    return { middleware };
 
-    async function middleware(ctx) {
+    const stopListening = api.events.on('request', ({ ctx }) => {
         const servePath = (api.getConfig('servePath') || '').trim().replace(/\/+$/, '');
-        if (!servePath) return;
-    
-        // ← was: ctx.req.url.split('?')[0]  (raw URL, only works with ~ paths)
-        if (ctx.path !== servePath) return;
-    
+        if (!servePath || ctx.path !== servePath) return;
+
         if (!_tailwindBuffer) {
             ctx.status = 503;
             ctx.type   = 'text/plain';
             ctx.body   = 'tailwind.js not available';
-            ctx.stop();
-            return;
+        } else {
+            ctx.type = 'application/javascript';
+            ctx.set('Cache-Control', 'public, max-age=86400');
+            ctx.body = _tailwindBuffer;
         }
-        ctx.type = 'application/javascript';
-        ctx.set('Cache-Control', 'public, max-age=86400');
-        ctx.body = _tailwindBuffer;
         ctx.stop();
-    }
+        return api.events.stop;
+    });
+
+    return { unload: stopListening };
 };
