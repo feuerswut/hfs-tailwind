@@ -2,7 +2,7 @@
 // Bundles @tailwindcss/browser and exposes it to other HFS plugins via customApi.
 // Optionally serves the JS file over HTTP at a configurable path.
 
-exports.version = 8.40302; // scheme: my_patch . encoded_tailwind_version  ->  4.3.2 = 8.40302
+exports.version = 8.40303; // scheme: my_patch . encoded_tailwind_version  ->  4.3.3 = 8.40303
 exports.description = "Provides @tailwindcss/browser to other plugins and optionally serves it.";
 exports.apiRequired = 13;
 exports.author = "feuerswut";
