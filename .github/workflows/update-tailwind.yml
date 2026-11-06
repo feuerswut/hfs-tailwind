@@ -80,29 +80,16 @@ jobs:
           sed -i "s|exports\.version = .*;|exports.version = ${NEW_VER};|" dist/plugin.js
           sed -i "s|// scheme:.*|// scheme: my_patch . encoded_tailwind_version  ->  ${TW_VER} = ${NEW_VER}|" dist/plugin.js
 
-      - name: Create Pull Request
+      # Commits straight to main. The previous "open a PR + auto-merge" flow needs the repo
+      # setting "Allow GitHub Actions to create and approve pull requests", which is off and
+      # made every run fail ("GitHub Actions is not permitted to create or approve pull
+      # requests"), so updates piled up unmerged on update/tailwind-* branches. The main
+      # ruleset only forbids force-pushes and deletion, so a normal push is allowed.
+      - name: Commit and push to main
         if: steps.check.outputs.needed == 'true'
-        id: cpr
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: "update/tailwind-${{ steps.tw.outputs.version }}"
-          commit-message: "${{ steps.commit_msg.outputs.message }}"
-          title: "Update @tailwindcss/browser to ${{ steps.tw.outputs.version }} (plugin ${{ steps.tw.outputs.plugin_version }})"
-          body: |
-            Automated update of bundled `dist/tailwind/tailwind.js`.
-            | | Value |
-            |---|---|
-            | Previous plugin version | `${{ steps.current.outputs.version }}` |
-            | New @tailwindcss/browser | `${{ steps.tw.outputs.version }}` |
-            | New plugin version | `${{ steps.tw.outputs.plugin_version }}` |
-            **Version scheme:** `my_patch . encoded_tailwind_version` → Tailwind `4.2.1` with `MY_PATCH=8` = `8.40201`
-          labels: |
-            dependencies
-            automated
-
-      - name: Enable auto-merge
-        if: steps.check.outputs.needed == 'true' && steps.cpr.outputs.pull-request-number != ''
-        run: gh pr merge --auto --squash "${{ steps.cpr.outputs.pull-request-number }}"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dist/plugin.js dist/tailwind/tailwind.js
+          git commit -m "${{ steps.commit_msg.outputs.message }} (plugin ${{ steps.tw.outputs.plugin_version }})"
+          git push origin HEAD:main
